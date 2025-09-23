@@ -1,0 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Monochrome base with UAE accents */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 142 76% 36%; /* UAE Green */
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 51 100% 50%; /* Dubai Gold */
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 72.22% 50.59%; /* UAE Red */
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 142 76% 36%; /* UAE Green ring */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 51 100% 50%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142 76% 36%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Smooth transitions for theme switching */
+  html {
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Disable transitions during theme change to prevent flashing */
+  html.theme-transition-disabled * {
+    transition: none !important;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 focus:ring-2 focus:ring-accent focus:ring-offset-2;
+  }
+  
+  .card-shadow {
+    @apply shadow-sm border border-border/50;
+  }
+  
+  .uae-gradient {
+    background: linear-gradient(135deg, #00732F 0%, #D4AF37 100%);
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+  
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  
+  .dark .bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  }
+  
+  .glass-card {
+    @apply bg-background/80 backdrop-blur-xl border border-border/50 shadow-xl;
+  }
+  
+  .floating-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  .glow-effect {
+    box-shadow: 0 0 20px rgba(0, 115, 47, 0.3);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .glow-effect:hover {
+    box-shadow: 0 0 40px rgba(0, 115, 47, 0.5);
+  }
+  
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Enhanced theme transitions */
+  .theme-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Dark mode specific animations */
+  .dark .floating-animation {
+    animation: floatDark 6s ease-in-out infinite;
+  }
+  
+  @keyframes floatDark {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-15px) scale(1.05); }
+  }
+  
+  /* Glow effects for dark mode */
+  .dark .glow-effect {
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+  }
+  
+  .dark .glow-effect:hover {
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.5);
+  }
+  
+  /* Enhanced glass effect for dark mode */
+  .dark .glass-card {
+    @apply bg-card/60 backdrop-blur-2xl border-border/30 shadow-2xl;
+  }
+  
+  /* Improved text gradients for dark mode */
+  .dark .text-gradient {
+    @apply bg-gradient-to-r from-uae-green via-uae-gold to-uae-green bg-clip-text text-transparent;
+  }
+  
+  /* Pulse animation with theme awareness */
+  .pulse-primary {
+    animation: pulsePrimary 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulsePrimary {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(0, 115, 47, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgba(0, 115, 47, 0);
+    }
+  }
+  
+  .dark .pulse-primary {
+    animation: pulsePrimaryDark 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulsePrimaryDark {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgba(212, 175, 55, 0);
+    }
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
+}
