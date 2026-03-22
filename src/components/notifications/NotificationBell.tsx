@@ -39,7 +39,25 @@ export function NotificationBell({ className }: NotificationBellProps) {
     // Subscribe to updates
     const unsubscribe = notificationManager.subscribe(updateNotifications);
 
-    return unsubscribe;
+    // Also react to preference updates in the same tab
+    const onPrefs = () => {
+      updateNotifications(notificationManager.getNotifications());
+    };
+    window.addEventListener('jt:notification-preferences-updated', onPrefs);
+
+    // React to cross-tab changes via storage events
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'job-tracker-notification-preferences') {
+        updateNotifications(notificationManager.getNotifications());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('jt:notification-preferences-updated', onPrefs);
+      window.removeEventListener('storage', onStorage);
+      unsubscribe();
+    };
   }, [mounted]);
 
   // Close dropdown when clicking outside

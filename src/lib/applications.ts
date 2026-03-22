@@ -236,7 +236,7 @@ export interface ApplicationStats {
   
   // Trends
   weeklyTrend: number[];
-  statusTrend: { date: Date; [key in ApplicationStatus]?: number }[];
+  statusTrend: Array<{ date: Date } & Partial<Record<ApplicationStatus, number>>>;
 }
 
 // Application Filters Interface
@@ -263,6 +263,8 @@ export interface ApplicationFilters {
 }
 
 // Application Manager Class
+import { notificationManager, NotificationFactory, NotificationType, NotificationPriority } from '@/lib/notifications'
+
 export class ApplicationManager {
   private applications: JobApplication[] = [];
   private interviews: Interview[] = [];
@@ -395,6 +397,10 @@ export class ApplicationManager {
     const application = this.applications.find(app => app.id === id);
     if (application) {
       const oldStatus = application.status;
+      const prevExpectedResponseDate = application.expectedResponseDate;
+      const prevOfferDeadline = application.offer?.responseDeadline;
+      const prevFollowUps = application.followUpDates ? [...application.followUpDates] : [];
+
       Object.assign(application, updates, { 
         updatedAt: new Date(),
         lastUpdated: new Date() 
@@ -407,6 +413,74 @@ export class ApplicationManager {
           title: 'Status Updated',
           description: `Status changed from ${oldStatus} to ${updates.status}`,
           metadata: { oldStatus, newStatus: updates.status }
+        });
+
+        // Notify application update
+        try {
+          notificationManager.createNotification(
+            NotificationFactory.createApplicationUpdate(
+              application.companyName,
+              application.position,
+              String(updates.status),
+              id
+            )
+          );
+        } catch (e) {
+          console.error('Failed to create application update notification:', e);
+        }
+      }
+
+      // Schedule expected response date deadline alert
+      if (updates.expectedResponseDate && updates.expectedResponseDate !== prevExpectedResponseDate) {
+        try {
+          notificationManager.createNotification(
+            NotificationFactory.createDeadlineAlert(
+              `Expected Response: ${application.companyName}`,
+              updates.expectedResponseDate,
+              id,
+              application.position
+            )
+          );
+        } catch (e) {
+          console.error('Failed to create expected response deadline notification:', e);
+        }
+      }
+
+      // Schedule offer response deadline alert
+      if (updates.offer && updates.offer.responseDeadline && updates.offer.responseDeadline !== prevOfferDeadline) {
+        try {
+          notificationManager.createNotification(
+            NotificationFactory.createDeadlineAlert(
+              `Offer Response Deadline: ${application.companyName}`,
+              updates.offer.responseDeadline,
+              id,
+              application.position
+            )
+          );
+        } catch (e) {
+          console.error('Failed to create offer response deadline notification:', e);
+        }
+      }
+
+      // Schedule follow-up reminders for any new followUpDates
+      if (updates.followUpDates && Array.isArray(updates.followUpDates)) {
+        const existingTimes = new Set(prevFollowUps.map(d => d.getTime()));
+        const newDates = updates.followUpDates.filter(d => !existingTimes.has(new Date(d).getTime()));
+        newDates.forEach(date => {
+          try {
+            notificationManager.createNotification({
+              type: NotificationType.DEADLINE,
+              priority: NotificationPriority.MEDIUM,
+              title: `Follow Up: ${application.companyName}`,
+              message: `Reminder to follow up on ${application.position}`,
+              scheduledFor: new Date(new Date(date).setHours(9, 0, 0, 0)),
+              actionUrl: '/applications',
+              actionLabel: 'Open Applications',
+              metadata: { applicationId: id, companyName: application.companyName, position: application.position }
+            });
+          } catch (e) {
+            console.error('Failed to create follow up notification:', e);
+          }
         });
       }
 
@@ -436,6 +510,53 @@ export class ApplicationManager {
       application.updatedAt = new Date();
       application.lastUpdated = new Date();
       this.saveApplications();
+
+      // Emit notifications based on timeline event
+      try {
+        if (timelineEvent.type === TimelineEventType.INTERVIEW_SCHEDULED) {
+          // Try to find interview details
+          let interviewDate: Date | undefined;
+          let interviewId: string | undefined;
+          if (timelineEvent.relatedId) {
+            const found = application.interviews.find(i => i.id === timelineEvent.relatedId);
+            if (found) {
+              interviewDate = found.scheduledDate;
+              interviewId = found.id;
+            }
+          }
+          if (!interviewDate) {
+            // fallback to next upcoming interview if any
+            const upcoming = application.interviews
+              .filter(i => i.scheduledDate > new Date())
+              .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())[0];
+            interviewDate = upcoming?.scheduledDate;
+            interviewId = upcoming?.id;
+          }
+          if (interviewDate) {
+            notificationManager.createNotification(
+              NotificationFactory.createInterviewReminder(
+                application.companyName,
+                application.position,
+                interviewDate,
+                interviewId
+              )
+            );
+          }
+        }
+
+        if (timelineEvent.type === TimelineEventType.STATUS_CHANGED && timelineEvent.metadata?.newStatus) {
+          notificationManager.createNotification(
+            NotificationFactory.createApplicationUpdate(
+              application.companyName,
+              application.position,
+              String(timelineEvent.metadata.newStatus),
+              applicationId
+            )
+          );
+        }
+      } catch (e) {
+        console.error('Failed to emit timeline-based notification:', e);
+      }
     }
   }
 

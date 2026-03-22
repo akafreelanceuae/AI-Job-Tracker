@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import '@/styles/globals.css'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
+import FlushToastListener from '@/components/notifications/FlushToastListener'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -37,6 +38,7 @@ export default function RootLayout({
           <div className="min-h-screen bg-background transition-colors duration-300">
             {children}
           </div>
+          <FlushToastListener />
           <Toaster />
         </ThemeProvider>
       </body>

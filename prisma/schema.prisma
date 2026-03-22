@@ -170,3 +170,65 @@ model AICache {
   
   @@map("ai_cache")
 }
+
+// Notification settings (non-breaking additions)
+model NotificationSettings {
+  id                 String   @id @default(cuid())
+  userId             String
+  enabled            Boolean  @default(true)
+  quietHoursEnabled  Boolean  @default(false)
+  quietHoursStart    String?
+  quietHoursEnd      String?
+  workdaysOnly       Boolean  @default(false)
+  dailyTime          String?
+  weeklyDay          Int?
+  weeklyTime         String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([userId])
+  @@map("notification_settings")
+}
+
+model NotificationTypeSettings {
+  id                          String   @id @default(cuid())
+  userId                      String
+  type                        String
+  enabled                     Boolean  @default(true)
+  email                       Boolean  @default(false)
+  push                        Boolean  @default(false)
+  inApp                       Boolean  @default(true)
+  frequency                   String   @default("immediate")
+  summaryThreshold            Int      @default(5)
+  allowUrgentDuringQuietHours Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@unique([userId, type])
+  @@map("notification_type_settings")
+}
+
+model NotificationBatchQueue {
+  id        String   @id @default(cuid())
+  userId    String
+  freq      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     NotificationBatchItem[]
+
+  @@map("notification_batch_queues")
+}
+
+model NotificationBatchItem {
+  id           String   @id @default(cuid())
+  queueId      String
+  type         String
+  priority     String
+  payload      Json
+  createdAt    DateTime @default(now())
+  scheduledFor DateTime?
+
+  queue NotificationBatchQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+  @@map("notification_batch_items")
+}

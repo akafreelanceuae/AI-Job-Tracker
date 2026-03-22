@@ -26,20 +26,18 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import DashboardLayout from '@/components/layout/dashboard-layout'
+import { applicationManager } from '@/lib/applications'
+import { computeAnalytics, type AnalyticsData } from '@/lib/analytics'
+import { config } from '@/lib/config'
 
-// Mock analytics data
-const analyticsData = {
+// Mock analytics data (used when NEXT_PUBLIC_ANALYTICS_USE_MOCK === 'true')
+const MOCK_ANALYTICS: AnalyticsData = {
   overview: {
     totalApplications: 47,
     responseRate: 68,
-    averageResponseTime: 5.2,
+    averageResponseTime: 5,
     successRate: 23,
-    trends: {
-      applications: 12,
-      responses: 8,
-      interviews: -2,
-      offers: 15
-    }
+    trends: { applications: 12, responses: 8, interviews: -2, offers: 15 },
   },
   applicationsByMonth: [
     { month: 'Jan', applications: 8, responses: 5, interviews: 2, offers: 1 },
@@ -77,7 +75,7 @@ const analyticsData = {
     { skill: 'Python', demand: 65, jobs: 19 },
     { skill: 'AWS', demand: 60, jobs: 18 },
     { skill: 'Docker', demand: 45, jobs: 14 },
-  ]
+  ],
 }
 
 interface StatCardProps {
@@ -368,9 +366,21 @@ const DonutChart = ({ data, title }: { data: any[]; title: string }) => {
 export default function AnalyticsPage() {
   const [mounted, setMounted] = useState(false)
   const [timeRange, setTimeRange] = useState('6m')
-  
+  const [data, setData] = useState<AnalyticsData>(MOCK_ANALYTICS)
+
   useEffect(() => {
     setMounted(true)
+    // initial load
+    const apps = applicationManager.getApplications()
+    const next = config.ANALYTICS_USE_MOCK ? MOCK_ANALYTICS : computeAnalytics(apps)
+    setData(next)
+
+    // subscribe to changes
+    const unsub = applicationManager.subscribe((apps) => {
+      if (config.ANALYTICS_USE_MOCK) return
+      setData(computeAnalytics(apps))
+    })
+    return unsub
   }, [])
   
   const actions = (
@@ -424,8 +434,8 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Applications"
-            value={analyticsData.overview.totalApplications}
-            trend={analyticsData.overview.trends.applications}
+            value={data.overview.totalApplications}
+            trend={data.overview.trends.applications}
             subtitle="Submitted this period"
             icon={Target}
             color="uae-green"
@@ -433,8 +443,8 @@ export default function AnalyticsPage() {
           />
           <StatCard
             title="Response Rate"
-            value={`${analyticsData.overview.responseRate}%`}
-            trend={analyticsData.overview.trends.responses}
+            value={`${data.overview.responseRate}%`}
+            trend={data.overview.trends.responses}
             subtitle="Above industry average"
             icon={TrendingUp}
             color="uae-gold"
@@ -442,8 +452,8 @@ export default function AnalyticsPage() {
           />
           <StatCard
             title="Avg Response Time"
-            value={`${analyticsData.overview.averageResponseTime} days`}
-            trend={analyticsData.overview.trends.interviews}
+            value={`${data.overview.averageResponseTime} days`}
+            trend={data.overview.trends.interviews}
             subtitle="Time to first response"
             icon={Clock}
             color="uae-red"
@@ -451,8 +461,8 @@ export default function AnalyticsPage() {
           />
           <StatCard
             title="Success Rate"
-            value={`${analyticsData.overview.successRate}%`}
-            trend={analyticsData.overview.trends.offers}
+            value={`${data.overview.successRate}%`}
+            trend={data.overview.trends.offers}
             subtitle="Applications to offers"
             icon={Award}
             color="uae-green"
@@ -463,11 +473,11 @@ export default function AnalyticsPage() {
         {/* Charts Row */}
         <div className="grid lg:grid-cols-2 gap-8">
           <BarChart 
-            data={analyticsData.applicationsByMonth} 
+            data={data.applicationsByMonth} 
             title="Monthly Application Trends"
           />
           <DonutChart 
-            data={analyticsData.statusDistribution} 
+            data={data.statusDistribution} 
             title="Application Status Distribution"
           />
         </div>
@@ -481,7 +491,7 @@ export default function AnalyticsPage() {
               Top Companies
             </h3>
             <div className="space-y-4">
-              {analyticsData.topCompanies.map((company, index) => (
+              {data.topCompanies.map((company, index) => (
                 <div 
                   key={company.name}
                   className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted/20 transition-all duration-300 ${
@@ -516,7 +526,7 @@ export default function AnalyticsPage() {
               Salary Ranges
             </h3>
             <div className="space-y-4">
-              {analyticsData.salaryRanges.map((range, index) => (
+              {data.salaryRanges.map((range, index) => (
                 <div key={range.range} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">{range.range}</span>
@@ -541,7 +551,7 @@ export default function AnalyticsPage() {
               Skills in Demand
             </h3>
             <div className="space-y-4">
-              {analyticsData.skills.map((skill, index) => (
+              {data.skills.map((skill, index) => (
                 <div key={skill.skill} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">{skill.skill}</span>

@@ -105,6 +105,13 @@ const navigation = [
     description: 'Reports & Insights',
     badge: null
   },
+  { 
+    name: 'Reports', 
+    href: '/dashboard/reports', 
+    icon: BarChart3, 
+    description: 'Export & PDFs',
+    badge: null
+  },
 ]
 
 const quickActions = [

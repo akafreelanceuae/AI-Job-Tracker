@@ -21,11 +21,128 @@ import {
   type Notification, 
   NotificationType, 
   NotificationPriority, 
-  NotificationStatus 
+  NotificationStatus,
+  type FlushSummaryRecord
 } from '@/lib/notifications';
+import { useRouter } from 'next/navigation';
 import { NotificationMockData } from '@/lib/notification-triggers';
 import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { cn } from '@/lib/utils';
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function groupToday(notifications: Notification[]) {
+  const today = startOfToday();
+  const counts: Record<string, number> = {};
+  notifications.forEach(n => {
+    if (n.createdAt >= today) {
+      counts[n.type] = (counts[n.type] || 0) + 1;
+    }
+  });
+  return counts;
+}
+
+function SummaryPills({ notifications }: { notifications: Notification[] }) {
+  const counts = groupToday(notifications);
+  const entries = Object.entries(counts).filter(([, c]) => c > 0);
+  if (entries.length === 0) {
+    return <p className="text-sm text-gray-500">No new notifications today.</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entries.map(([type, count]) => (
+        <span key={type} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+          {count} {labelForType(type)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function labelForType(type: string) {
+  switch (type) {
+    case 'job_match': return 'job matches';
+    case 'deadline': return 'deadlines';
+    case 'interview': return 'interviews';
+    case 'application_update': return 'application updates';
+    case 'salary_alert': return 'salary alerts';
+    case 'company_news': return 'company news';
+    case 'skill_recommendation': return 'skill tips';
+    case 'network_update': return 'network updates';
+    case 'system': return 'system notices';
+    default: return 'items';
+  }
+}
+
+function pickRouteForSummary(s: FlushSummaryRecord) {
+  if (!s || !s.summaries || s.summaries.length === 0) return '/notifications';
+  if (s.summaries.length > 1) return '/notifications';
+  const t = s.summaries[0].type as string;
+  switch (t) {
+    case 'job_match':
+    case 'salary_alert':
+    case 'skill_recommendation':
+      return '/dashboard/recommendations';
+    case 'application_update':
+    case 'deadline':
+      return '/applications';
+    case 'interview':
+    case 'company_news':
+    case 'network_update':
+    default:
+      return '/notifications';
+  }
+}
+
+function SummariesHistory() {
+  const [history, setHistory] = React.useState<FlushSummaryRecord[]>([]);
+  const router = useRouter();
+
+  React.useEffect(() => {
+    setHistory(notificationManager.getFlushSummaries(7));
+    const onFlush = () => setHistory(notificationManager.getFlushSummaries(7));
+    window.addEventListener('jt:notification-flush', onFlush as EventListener);
+    return () => window.removeEventListener('jt:notification-flush', onFlush as EventListener);
+  }, []);
+
+  if (!history || history.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-base font-semibold text-gray-900">Recent summaries</h2>
+      </div>
+      <div className="space-y-3">
+        {history.map((h) => (
+          <div key={h.id} className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {h.freq === 'weekly' ? 'Weekly' : h.freq === 'daily' ? 'Daily' : 'Summary'} • {new Date(h.when).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-600 mt-1 flex flex-wrap gap-2">
+                {h.summaries.map((s, idx) => (
+                  <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                    {s.count} {labelForType(String(s.type))}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(pickRouteForSummary(h))}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              View
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -229,6 +346,15 @@ export default function NotificationsPage() {
 
         {totalCount > 0 && (
           <>
+            {/* Today's Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-2">Today’s summary</h2>
+              <SummaryPills notifications={notifications} />
+            </div>
+
+            {/* Recent Summaries */}
+            <SummariesHistory />
+
             {/* Filters and Search */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">

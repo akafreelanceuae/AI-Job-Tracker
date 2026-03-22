@@ -63,10 +63,13 @@ export class NotificationTriggerSystem {
     if (this.intervalId) clearInterval(this.intervalId);
     
     this.intervalId = setInterval(() => {
+      // Flush any due pending notifications first
+      notificationManager.flushDue();
       this.checkTriggers();
     }, 60000); // Check every minute
 
     // Also check immediately
+    notificationManager.flushDue();
     this.checkTriggers();
   }
 

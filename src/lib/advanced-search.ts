@@ -124,10 +124,10 @@ export class AdvancedJobSearchEngine {
 
   // Main search function
   search(filters: SearchFilters): SearchResult[] {
-    let results = this.jobs.map(job => ({
+    let results: SearchResult[] = this.jobs.map(job => ({
       job,
       relevanceScore: 0,
-      matchedFields: [],
+      matchedFields: [] as string[],
       highlightedTitle: job.title,
       highlightedDescription: job.description
     }))

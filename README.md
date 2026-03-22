@@ -26,6 +26,22 @@ Transform chaotic job hunting into a streamlined ritual with AI precision, UAE l
 
 ## 🚀 Getting Started
 
+Environment flags (all default to safe OFF unless noted):
+- NEXT_PUBLIC_NOTIFICATIONS_TOASTS_ENABLED=true to show summary toasts (default off unless set)
+- NEXT_PUBLIC_ANALYTICS_USE_MOCK=false to use real analytics (set true for mock)
+- NEXT_PUBLIC_NOTIFICATIONS_SSE_ENABLED=false enable server-backed settings + SSE
+- SERVER_NOTIFICATIONS_BATCHING_ENABLED=false enable server batching (or NOTIFICATIONS_SERVER_BATCHING_ENABLED)
+- NEXT_PUBLIC_DELIVERY_EMAIL_ENABLED=false enable log-only email adapter
+- NEXT_PUBLIC_DELIVERY_PUSH_ENABLED=false enable log-only push adapter
+- NEXT_PUBLIC_DELIVERY_WEBHOOK_ENABLED=false enable log-only webhook adapter
+- SENTRY_DSN (server) and/or NEXT_PUBLIC_SENTRY_DSN (client) to enable Sentry
+
+Testing
+- npm run test
+
+Dev helper scripts
+- npm run flush:dev:hourly | flush:dev:daily | flush:dev:weekly
+
 ```bash
 # Clone the repository
 git clone <repository-url>

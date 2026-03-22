@@ -23,27 +23,64 @@ import {
   NotificationType, 
   NotificationPriority, 
   type NotificationPreferences, 
-  defaultNotificationPreferences 
+  defaultNotificationPreferences,
+  notificationManager
 } from '@/lib/notifications';
+import { config } from '@/lib/config';
+import { getSettings as getServerSettings, updateSettings as updateServerSettings, subscribeToSettings } from '@/lib/settings-store';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 export default function NotificationSettingsPage() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultNotificationPreferences);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setMounted(true);
     loadPreferences();
+
+    if (config.NOTIFICATIONS_SSE_ENABLED) {
+      const unsub = subscribeToSettings(() => {
+        loadPreferences();
+        setHasChanges(false);
+      })
+      return () => unsub()
+    }
+
+    const onPrefs = () => {
+      loadPreferences();
+      setHasChanges(false);
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'job-tracker-notification-preferences') {
+        loadPreferences();
+        setHasChanges(false);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('jt:notification-preferences-updated', onPrefs as EventListener);
+      window.addEventListener('storage', onStorage);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('jt:notification-preferences-updated', onPrefs as EventListener);
+        window.removeEventListener('storage', onStorage);
+      }
+    };
   }, []);
 
-  const loadPreferences = () => {
+  const loadPreferences = async () => {
     try {
-      const stored = localStorage.getItem('job-tracker-notification-preferences');
-      if (stored) {
-        setPreferences(JSON.parse(stored));
+      if (config.NOTIFICATIONS_SSE_ENABLED) {
+        const prefs = await getServerSettings();
+        if (prefs) setPreferences(prefs);
+      } else {
+        const snap = notificationManager.getPreferencesSnapshot();
+        if (snap) setPreferences(snap);
       }
     } catch (error) {
       console.error('Failed to load notification preferences:', error);
@@ -53,12 +90,16 @@ export default function NotificationSettingsPage() {
   const savePreferences = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem('job-tracker-notification-preferences', JSON.stringify(preferences));
+      if (config.NOTIFICATIONS_SSE_ENABLED) {
+        await updateServerSettings(preferences);
+      } else {
+        notificationManager.setPreferences(preferences);
+      }
       setHasChanges(false);
-      // Show success toast here
+      toast({ title: 'Preferences saved', description: 'Your notification preferences were updated.' });
     } catch (error) {
       console.error('Failed to save notification preferences:', error);
-      // Show error toast here
+      toast({ title: 'Failed to save', description: 'Please try again.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -330,6 +371,73 @@ export default function NotificationSettingsPage() {
                 </div>
               </div>
 
+              {/* Delivery Schedule */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Delivery Schedule</h3>
+                      <p className="text-gray-600 text-sm">Configure when daily/weekly batches flush</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Daily flush time</label>
+                    <input
+                      type="time"
+                      value={preferences.flushTimes?.dailyTime || '09:00'}
+                      onChange={(e) => updatePreferences({
+                        flushTimes: {
+                          ...preferences.flushTimes,
+                          dailyTime: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Weekly day</label>
+                    <select
+                      value={preferences.flushTimes?.weeklyDay ?? 1}
+                      onChange={(e) => updatePreferences({
+                        flushTimes: {
+                          ...preferences.flushTimes,
+                          weeklyDay: Number(e.target.value)
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value={0}>Sunday</option>
+                      <option value={1}>Monday</option>
+                      <option value={2}>Tuesday</option>
+                      <option value={3}>Wednesday</option>
+                      <option value={4}>Thursday</option>
+                      <option value={5}>Friday</option>
+                      <option value={6}>Saturday</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Weekly flush time</label>
+                    <input
+                      type="time"
+                      value={preferences.flushTimes?.weeklyTime || '09:00'}
+                      onChange={(e) => updatePreferences({
+                        flushTimes: {
+                          ...preferences.flushTimes,
+                          weeklyTime: e.target.value
+                        }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Notification Types */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">Notification Types</h3>
@@ -400,7 +508,7 @@ export default function NotificationSettingsPage() {
                               </label>
                             </div>
 
-                            {/* Push */}
+                            {/* SMS/Push */}
                             <div className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
@@ -416,17 +524,44 @@ export default function NotificationSettingsPage() {
                             </div>
 
                             {/* Frequency */}
-                            <div>
+                            <div className="grid grid-cols-1 gap-2">
+                              <label className="text-sm font-medium text-gray-700">Frequency</label>
                               <select
-                                value={settings.frequency}
+                                value={settings.frequency || 'immediate'}
                                 onChange={(e) => updateTypePreference(type, { frequency: e.target.value as any })}
-                                className="w-full text-sm px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                               >
                                 <option value="immediate">Immediate</option>
                                 <option value="hourly">Hourly</option>
                                 <option value="daily">Daily</option>
                                 <option value="weekly">Weekly</option>
                               </select>
+                            </div>
+
+                            {/* Summary Threshold */}
+                            <div className="grid grid-cols-1 gap-2">
+                              <label className="text-sm font-medium text-gray-700">Summary threshold</label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={settings.summaryThreshold ?? 5}
+                                onChange={(e) => updateTypePreference(type, { summaryThreshold: Math.max(1, Number(e.target.value)) })}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              />
+                            </div>
+
+                            {/* Urgent Quiet Hours Override */}
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`${type}-urgentQuiet`}
+                                checked={!!settings.allowUrgentDuringQuietHours}
+                                onChange={(e) => updateTypePreference(type, { allowUrgentDuringQuietHours: e.target.checked })}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <label htmlFor={`${type}-urgentQuiet`} className="text-sm font-medium text-gray-700">
+                                Allow urgent during quiet hours
+                              </label>
                             </div>
                           </div>
                         )}
@@ -435,13 +570,10 @@ export default function NotificationSettingsPage() {
                   })}
                 </div>
               </div>
+
             </>
           )}
-        </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>These settings are saved locally in your browser. Clearing browser data will reset all preferences.</p>
         </div>
       </div>
     </div>
